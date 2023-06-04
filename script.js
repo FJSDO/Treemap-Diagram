@@ -1,88 +1,103 @@
-let countyURL = 'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/counties.json'
-let educationURL = 'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/for_user_education.json'
+let movieDataUrl = 'https://cdn.freecodecamp.org/testable-projects-fcc/data/tree_map/movie-data.json'
 
-let countyData
-let educationData
+let movieData
 
 let canvas = d3.select('#canvas')
 let tooltip = d3.select('#tooltip')
 
-let drawMap = () => {
- 
-    canvas.selectAll('path')
-            .data(countyData)
+let drawTreeMap = () => {
+
+    let hierarchy = d3.hierarchy(movieData, (node) => {
+        return node['children']
+    }).sum((node) => {
+        return node['value']
+    }).sort((node1, node2) => {
+        return node2['value'] - node1['value']
+    })
+
+    let createTreeMap = d3.treemap()
+                            .size([1000, 600])
+    
+    createTreeMap(hierarchy)
+
+    let movieTiles = hierarchy.leaves()
+    console.log(movieTiles)
+
+    let block = canvas.selectAll('g')
+            .data(movieTiles)
             .enter()
-            .append('path')
-            .attr('d', d3.geoPath())
-            .attr('class', 'county')
-            .attr('fill', (countyDataItem) => {
-                let id = countyDataItem['id']
-                let county = educationData.find((item) => {
-                    return item['fips'] === id
-                })
-                let percentage = county['bachelorsOrHigher']
-                if(percentage <=10) {
-                    return 'darkred'
-                }else if(percentage <= 15){
-                    return 'tomato'
-                }else if(percentage <= 30){
-                    return 'orange'
-                }else if(percentage <= 45){
+            .append('g')
+            .attr('transform', (movie) => {
+                return 'translate(' + movie['x0'] + ', ' + movie['y0'] + ')'
+            })
+
+    block.append('rect')
+            .attr('class', 'tile')
+            .attr('fill', (movie) => {
+                let category = movie['data']['category']
+                if(category === 'Action'){
+                    return 'lightblue'
+                }else if(category === 'Drama'){
                     return 'lightgreen'
-                }else{
-                    return 'limegreen'
+                }else if(category === 'Adventure'){
+                    return 'crimson'
+                }else if(category === 'Family'){
+                    return 'steelblue'
+                }else if(category === 'Animation'){
+                    return 'pink'
+                }else if(category === 'Comedy'){
+                    return 'khaki'
+                }else if(category === 'Biography'){
+                    return 'green'
                 }
+            }).attr('data-name', (movie) => {
+                return movie['data']['name']
+            }).attr('data-category', (movie) => {
+                return movie['data']['category']
             })
-            .attr('data-fips', (countyDataItem) => {
-                return countyDataItem['id']
+            .attr('data-value', (movie) => {
+                return movie['data']['value']
             })
-            .attr('data-education', (countyDataItem) => {
-                let id = countyDataItem['id']
-                let county = educationData.find((item) => {
-                    return item['fips'] === id
-                })
-                let percentage = county['bachelorsOrHigher']
-                return percentage
+            .attr('width', (movie) => {
+                return movie['x1'] - movie['x0']
             })
-            .on('mouseover', (countyDataItem)=> {
+            .attr('height', (movie) => {
+                return movie['y1'] - movie['y0']
+            })
+            .on('mouseover', (movie) => {
                 tooltip.transition()
-                    .style('visibility', 'visible')
+                        .style('visibility', 'visible')
 
-                let id = countyDataItem['id']
-                let county = educationData.find((item) => {
-                    return item['fips'] === id
-                })
+                let revenue = movie['data']['value'].toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 
-                tooltip.text(county['fips'] + ' - ' + county['area_name'] + ', ' + 
-                    county['state'] + ' : ' + county['bachelorsOrHigher'] + '%')
 
-                tooltip.attr('data-education', county['bachelorsOrHigher'] )
+                tooltip.html(
+                    '$ ' + revenue + '<hr />' + movie['data']['name']
+                )
+
+                tooltip.attr('data-value', movie['data']['value'])
             })
-            .on('mouseout', (countyDataItem) => {
+            .on('mouseout', (movie) => {
                 tooltip.transition()
-                    .style('visibility', 'hidden')
+                        .style('visibility', 'hidden')
             })
+
+    block.append('text')
+            .text((movie) => {
+                return movie['data']['name']
+            })
+            .attr('x', 5)
+            .attr('y', 20)
 }
 
-d3.json(countyURL).then(
+d3.json(movieDataUrl).then(
     (data, error) => {
         if(error){
-            console.log(log)
-        }else{
-            countyData = topojson.feature(data, data.objects.counties).features
-            console.log(countyData)
-
-            d3.json(educationURL).then(
-                (data, error) => {
-                    if(error){
-                        console.log(error)
-                    }else{
-                        educationData = data
-                        console.log(educationData)
-                        drawMap()
-                    }
-                }
-            )
+            console.log(error)
+        } else {
+            movieData = data
+            console.log(movieData)
+            drawTreeMap()
         }
     }
 )
